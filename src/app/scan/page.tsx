@@ -1,5 +1,8 @@
  "use client";
-import {useEffect,useRef,useState} from "react";import {useRouter} from "next/navigation";import {Amt,sumAmts,useApp,Scan} from "@/lib/store";import {keyOf} from "@/lib/dates";import {AmountEditor} from "@/components/AmountEditor";
+import {useEffect,useRef,useState} from "react";
+import {useRouter} from "next/navigation";
+import {Amt,sumAmts,useApp} from "@/lib/store";
+import {keyOf} from "@/lib/dates";import {AmountEditor} from "@/components/AmountEditor";
 const shrink=(src:string)=>new Promise<string>(res=>{const i=new Image();i.onload=()=>{const s=Math.min(1,1400/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*s;c.height=i.height*s;c.getContext("2d")!.drawImage(i,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.82))};i.src=src});
 export default function Scan(){const {fmt,setScans}=useApp(),router=useRouter(),vid=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null);
  const [pages,setPages]=useState<string[]>([]),[amts,setAmts]=useState<Amt[]|null>(null),[busy,setBusy]=useState(""),[err,setErr]=useState(""),[cam,setCam]=useState(false),[date,setDate]=useState(keyOf(Date.now()));
