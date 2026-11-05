@@ -3,41 +3,46 @@
 import { useEffect, useRef, useState } from "react";
 import { Amt, sumAmts, useApp } from "@/lib/store";
 
-type AmountEditorProps = {
+export function AmountEditor({
+  amounts,
+  onChange,
+}: {
   amounts: Amt[];
   onChange: (amounts: Amt[]) => void;
-};
-
-export function AmountEditor({ amounts, onChange }: AmountEditorProps) {
+}) {
   const { fmt } = useApp();
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
-  const updateAmount = (index: number, patch: Partial<Amt>) => {
+  function updateAmount(index: number, patch: Partial<Amt>) {
     onChange(amounts.map((amount, i) =>
       i === index ? { ...amount, ...patch } : amount
     ));
-  };
+  }
 
-  // Move to the next existing amount field, or create one if needed.
-  const goToNextInput = (currentIndex: number) => {
-    const nextIndex = currentIndex + 1;
-
-    if (nextIndex < amounts.length) {
-      setFocusIndex(nextIndex);
-      return;
-    }
-
+  function addAndFocusNext() {
+    const nextIndex = amounts.length;
     onChange([...amounts, { value: 0, confidence: 1 }]);
     setFocusIndex(nextIndex);
-  };
+  }
 
   useEffect(() => {
     if (focusIndex === null) return;
-
     inputs.current[focusIndex]?.focus();
     setFocusIndex(null);
   }, [amounts.length, focusIndex]);
+
+  function moveToNext(index: number) {
+    const nextIndex = index + 1;
+
+    if (nextIndex < amounts.length) {
+      inputs.current[nextIndex]?.focus();
+      inputs.current[nextIndex]?.select();
+      return;
+    }
+
+    addAndFocusNext();
+  }
 
   return (
     <div className="space-y-2">
@@ -47,24 +52,35 @@ export function AmountEditor({ amounts, onChange }: AmountEditorProps) {
             ref={(element) => {
               inputs.current[index] = element;
             }}
-            type="number"
+            type="text"
             inputMode="decimal"
-            step="any"
+            enterKeyHint="next"
+            pattern="[0-9]*[.,]?[0-9]*"
             value={amount.value === 0 ? "" : String(amount.value)}
             placeholder="Enter amount"
-            onChange={(event) =>
-              updateAmount(index, {
-                value: event.target.value === "" ? 0 : Number(event.target.value),
-                confidence: 1,
-              })
-            }
-            onKeyDown={(event) => {
-              if (event.key === "=" || event.key === "ArrowRight") {
-                event.preventDefault();
-                goToNextInput(index);
+            onChange={(event) => {
+              const rawValue = event.target.value.replace(",", ".");
+              const parsed = rawValue === "" ? 0 : Number(rawValue);
+              if (rawValue === "" || Number.isFinite(parsed)) {
+                updateAmount(index, { value: parsed, confidence: 1 });
               }
             }}
-            className={`w-32 rounded border px-2 py-1 ${
+            onKeyDown={(event) => {
+              // Mobile keyboards commonly show a Next/Done key rather than
+              // calculator keys. Enter advances to the next amount.
+              if (event.key === "Enter") {
+                event.preventDefault();
+                moveToNext(index);
+              } else if (
+                event.key === "ArrowRight" &&
+                event.currentTarget.selectionStart === event.currentTarget.value.length &&
+                event.currentTarget.selectionEnd === event.currentTarget.value.length
+              ) {
+                event.preventDefault();
+                moveToNext(index);
+              }
+            }}
+            className={`w-32 rounded border px-2 py-2 ${
               amount.crossed ? "line-through opacity-50" : ""
             }`}
           />
@@ -101,7 +117,7 @@ export function AmountEditor({ amounts, onChange }: AmountEditorProps) {
 
       <button
         type="button"
-        onClick={() => goToNextInput(amounts.length - 1)}
+        onClick={addAndFocusNext}
         className="text-sm text-indigo-600"
       >
         + Add amount
