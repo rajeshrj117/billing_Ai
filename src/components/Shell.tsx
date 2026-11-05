@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 
 const nav = [
   ["/manual", "Manual Bill Entry"],
+  ["/auto-entry", "Auto Entry"],
   ["/", "Dashboard"],
   ["/scan", "AI Camera Scanner"],
   ["/history", "Scan History"],
