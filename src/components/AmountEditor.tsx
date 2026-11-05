@@ -32,16 +32,14 @@ export function AmountEditor({
     setFocusIndex(null);
   }, [amounts.length, focusIndex]);
 
-  function moveToNext(index: number) {
+  function focusNext(index: number) {
     const nextIndex = index + 1;
-
     if (nextIndex < amounts.length) {
       inputs.current[nextIndex]?.focus();
       inputs.current[nextIndex]?.select();
-      return;
+    } else {
+      addAndFocusNext();
     }
-
-    addAndFocusNext();
   }
 
   return (
@@ -55,29 +53,25 @@ export function AmountEditor({
             type="text"
             inputMode="decimal"
             enterKeyHint="next"
-            pattern="[0-9]*[.,]?[0-9]*"
             value={amount.value === 0 ? "" : String(amount.value)}
             placeholder="Enter amount"
             onChange={(event) => {
-              const rawValue = event.target.value.replace(",", ".");
-              const parsed = rawValue === "" ? 0 : Number(rawValue);
-              if (rawValue === "" || Number.isFinite(parsed)) {
-                updateAmount(index, { value: parsed, confidence: 1 });
+              const raw = event.target.value.replace(",", ".");
+              const value = raw === "" ? 0 : Number(raw);
+              if (raw === "" || Number.isFinite(value)) {
+                updateAmount(index, { value, confidence: 1 });
               }
             }}
             onKeyDown={(event) => {
-              // Mobile keyboards commonly show a Next/Done key rather than
-              // calculator keys. Enter advances to the next amount.
-              if (event.key === "Enter") {
-                event.preventDefault();
-                moveToNext(index);
-              } else if (
-                event.key === "ArrowRight" &&
-                event.currentTarget.selectionStart === event.currentTarget.value.length &&
-                event.currentTarget.selectionEnd === event.currentTarget.value.length
+              // Android/iOS numeric keyboards usually send Enter for their
+              // "Next" action. Some keyboards send ArrowRight instead.
+              if (
+                event.key === "Enter" ||
+                event.key === "NumpadEnter" ||
+                event.key === "ArrowRight"
               ) {
                 event.preventDefault();
-                moveToNext(index);
+                focusNext(index);
               }
             }}
             className={`w-32 rounded border px-2 py-2 ${
