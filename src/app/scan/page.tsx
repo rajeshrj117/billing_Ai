@@ -40,6 +40,10 @@ export default function Scan() {
   const [err, setErr] = useState("");
   const [cam, setCam] = useState(false);
   const [date, setDate] = useState(keyOf(Date.now()));
+  const [mode, setMode] = useState<"camera" | "write" | "keypad">("camera");
+  const [draft, setDraft] = useState("");
+  const handCanvas = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
 
   const stop = () => {
     stream.current?.getTracks().forEach((t) => t.stop());
@@ -59,6 +63,10 @@ export default function Scan() {
       stream.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  useEffect(() => {
+    if (mode === "write" && !amts) clearHandwriting();
+  }, [mode, amts]);
 
   async function start() {
     setErr("");
@@ -157,6 +165,75 @@ export default function Scan() {
     }
   }
 
+  function clearHandwriting() {
+    const canvas = handCanvas.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function beginDraw(e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawing.current = true;
+    canvas.setPointerCapture(e.pointerId);
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 9;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo((e.clientX - rect.left) * canvas.width / rect.width, (e.clientY - rect.top) * canvas.height / rect.height);
+  }
+
+  function draw(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.lineTo((e.clientX - rect.left) * canvas.width / rect.width, (e.clientY - rect.top) * canvas.height / rect.height);
+    ctx.stroke();
+  }
+
+  function endDraw() { drawing.current = false; }
+
+  async function recognizeHandwriting() {
+    const canvas = handCanvas.current;
+    if (!canvas) return;
+    const image = await shrink(canvas.toDataURL("image/jpeg", 0.95));
+    setPages([image]);
+    setBusy("Reading handwritten numbers…");
+    setErr("");
+    try {
+      const r = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: [image] }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Could not read handwriting");
+      setAmts(j.amounts || []);
+      if (!j.amounts?.length) setErr("No numbers detected. Write larger and clearer, or use Number Keypad Mode for guaranteed accurate entry.");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Handwriting recognition failed");
+    } finally { setBusy(""); }
+  }
+
+  function addKeypadAmount() {
+    const value = Number(draft);
+    if (!draft.trim() || !Number.isFinite(value) || value <= 0) {
+      setErr("Enter an amount greater than zero.");
+      return;
+    }
+    setAmts((prev) => [...(prev || []), { value, confidence: 1, crossed: false }]);
+    setDraft("");
+    setErr("");
+  }
+
   function save() {
     if (!amts) return;
 
@@ -184,7 +261,62 @@ export default function Scan() {
 
       {!amts && (
         <>
-          <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <div className="grid grid-cols-3 gap-2 rounded-xl border bg-white p-2">
+            {([
+              ["camera", "📷 Camera Scan"],
+              ["write", "✍️ Write by Hand"],
+              ["keypad", "🔢 Number Keypad"],
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => { setMode(value); setErr(""); }}
+                className={`rounded-lg px-2 py-3 text-sm font-semibold ${mode === value ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {mode === "write" && (
+            <div className="space-y-3 rounded-xl border bg-white p-4">
+              <div><h3 className="font-semibold">Write your amounts here</h3>
+                <p className="text-sm text-slate-600">Write each amount clearly, with space between numbers. The AI will read your writing; check the results before saving.</p></div>
+              <canvas ref={handCanvas} width={1200} height={420}
+                onPointerDown={beginDraw} onPointerMove={draw} onPointerUp={endDraw} onPointerCancel={endDraw}
+                className="w-full touch-none rounded-lg border-2 border-dashed border-slate-300 bg-white"
+                style={{ minHeight: 190 }} />
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={clearHandwriting} className="rounded-lg border px-4 py-2.5">Clear pad</button>
+                <button type="button" disabled={!!busy} onClick={recognizeHandwriting} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-white disabled:opacity-50">{busy || "Recognize Numbers"}</button>
+              </div>
+              <p className="text-xs text-slate-500">Tip: Use Number Keypad if handwriting is difficult to read. It does not use AI.</p>
+            </div>
+          )}
+
+          {mode === "keypad" && (
+            <div className="space-y-3 rounded-xl border bg-white p-4">
+              <div><h3 className="font-semibold">Enter amount using number buttons</h3>
+                <p className="text-sm text-slate-600">Tap the big buttons. No handwriting or AI required.</p></div>
+              <div className="rounded-lg border bg-slate-50 p-4 text-right">
+                <p className="text-xs text-slate-500">Amount</p>
+                <p className="min-h-10 break-all text-3xl font-bold tabular-nums">{draft || "0"}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {["1","2","3","4","5","6","7","8","9",".","0","⌫"].map((key) => (
+                  <button key={key} type="button" onClick={() => {
+                    setErr("");
+                    if (key === "⌫") setDraft((v) => v.slice(0, -1));
+                    else if (key === ".") setDraft((v) => v.includes(".") ? v : (v || "0") + ".");
+                    else setDraft((v) => (v === "0" ? key : v + key));
+                  }} className="min-h-14 rounded-xl border bg-white text-2xl font-semibold shadow-sm active:bg-orange-100">{key}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDraft("")} className="flex-1 rounded-lg border px-4 py-3">Clear</button>
+                <button type="button" onClick={addKeypadAmount} className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">+ Add Amount</button>
+              </div>
+              {amts && <p className="text-sm font-semibold text-emerald-700">{amts.length} amount(s) added. Total: {fmt(sumAmts(amts))}</p>}
+            </div>
+          )}
+
+          {mode === "camera" && <div className="rounded-xl border bg-white p-3 sm:p-4">
 
             {/* Camera preview */}
             {cam && (
@@ -302,7 +434,7 @@ export default function Scan() {
               </button>
             )}
 
-          </div>
+          </div>}
         </>
       )}
 
@@ -312,7 +444,7 @@ export default function Scan() {
 
           <div>
             <h3 className="font-semibold">
-              Review detected amounts
+              Review amounts
             </h3>
 
             <p className="text-xs text-slate-500">

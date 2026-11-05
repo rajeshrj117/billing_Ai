@@ -7,6 +7,7 @@ import { useApp } from "@/lib/store";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
 const nav = [
+  ["/manual", "Manual Bill Entry"],
   ["/", "Dashboard"],
   ["/scan", "AI Camera Scanner"],
   ["/history", "Scan History"],
