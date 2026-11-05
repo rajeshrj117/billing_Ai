@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AutoAmountEditor } from "@/components/AutoAmountEditor";
 import { keyOf } from "@/lib/dates";
-import { sumAmts, useApp, type Amt, type Scan } from "@/lib/store";
+import { sumAmts, useApp, type Amt, type Scan, buildWhatsAppBillMessage } from "@/lib/store";
 
 export default function AutoEntryPage() {
   const { fmt, setScans } = useApp();
@@ -44,8 +44,7 @@ export default function AutoEntryPage() {
       return;
     }
 
-    const lines = amounts.filter((amount) => amount.value > 0).map((amount, index) => `${index + 1}. ${amount.crossed ? "CANCELLED — " : ""}${fmt(amount.value)}`);
-    const message = ["*Bill from ScanBill AI*", `Date: ${date}`, "", ...lines, "", `*Grand Total: ${fmt(total)}*`, "Thank you!"].join("\n");
+    const message = buildWhatsAppBillMessage(amounts, total, date, "ScanBill AI", fmt);
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
     router.push("/history");
   }

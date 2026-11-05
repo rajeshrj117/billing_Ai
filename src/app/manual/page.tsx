@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { keyOf } from "@/lib/dates";
-import { sumAmts, useApp, type Amt, type Scan } from "@/lib/store";
+import { sumAmts, useApp, type Amt, type Scan, buildWhatsAppBillMessage } from "@/lib/store";
 
 export default function ManualBillEntry() {
   const { fmt, setScans } = useApp();
@@ -82,7 +82,7 @@ export default function ManualBillEntry() {
 
   function sendWhatsAppBill() {
     const entered = whatsappNumber.trim();
-    let phone = entered.replace(/\\D/g, "");
+    let phone = entered.replace(/\D/g, "");
     if (phone.length === 10) phone = `91${phone}`;
     if (phone.length < 10 || phone.length > 15) {
       setError("Enter a valid WhatsApp number with country code, such as +91 9876543210.");
@@ -92,18 +92,13 @@ export default function ManualBillEntry() {
     const bill = savedEntry;
     if (!bill) return;
 
-    const lines = bill.amounts.map(
-      (a, i) => `${i + 1}. ${a.crossed ? "CANCELLED — " : ""}${fmt(a.value)}`
+    const message = buildWhatsAppBillMessage(
+      bill.amounts,
+      bill.total,
+      bill.dateKey,
+      "ScanBill AI",
+      fmt
     );
-    const message = [
-      "*Bill from ScanBill AI*",
-      `Date: ${date}`,
-      "",
-      ...lines,
-      "",
-      `*Grand Total: ${fmt(bill.total)}*`,
-      "Thank you!",
-    ].join("\\n");
 
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
