@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/lib/store";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const nav = [
   ["/", "Dashboard"],
@@ -31,15 +32,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="hidden border-r bg-white p-4 md:block md:w-60 md:shrink-0">
         <h1 className="mb-3 text-xl font-bold text-slate-800">{settings.businessName} <span className="text-orange-500">AI</span></h1>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Workspace</p>
+        <div className="mb-4"><InstallPrompt /></div><p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Workspace</p>
         {links()}
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-white px-4 py-3 md:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-white px-4 py-3">
           <h1 className="text-lg font-bold text-slate-800">{settings.businessName} <span className="text-orange-500">AI</span></h1>
-          <button type="button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen}
+          <div className="flex items-center gap-2"><InstallPrompt /><button type="button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen}
             aria-controls="mobile-workspace-menu" aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="rounded-lg border px-3 py-2 text-sm font-semibold text-slate-700">{menuOpen ? "Close" : "☰ Menu"}</button>
+            className="rounded-lg border px-3 py-2 text-sm font-semibold text-slate-700 md:hidden">{menuOpen ? "Close" : "☰ Menu"}</button></div>
         </header>
         {menuOpen && <>
           <button type="button" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)}

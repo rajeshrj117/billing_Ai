@@ -48,6 +48,13 @@ export default function Scan() {
   };
 
   useEffect(() => {
+    const isInstalledApp =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    if (isInstalledApp) {
+      // The browser will ask for camera permission if it has not been granted.
+      void start();
+    }
     return () => {
       stream.current?.getTracks().forEach((t) => t.stop());
     };
