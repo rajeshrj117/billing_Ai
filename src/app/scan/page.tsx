@@ -312,7 +312,6 @@ export default function Scan() {
                 <button type="button" onClick={() => setDraft("")} className="flex-1 rounded-lg border px-4 py-3">Clear</button>
                 <button type="button" onClick={addKeypadAmount} className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">+ Add Amount</button>
               </div>
-              {amts && <p className="text-sm font-semibold text-emerald-700">{amts.length} amount(s) added. Total: {fmt(sumAmts(amts))}</p>}
             </div>
           )}
 
